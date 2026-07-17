@@ -1,0 +1,103 @@
+/**
+ * Physics tools - 11 tools for physics setup
+ */
+import { callGodot } from '../server.js';
+import { z, NodePath, ParentPath, Properties, OptionalProperties } from './shared-types.js';
+export function registerPhysicsTools(server, bridge) {
+    // 1. setup_physics_body
+    server.registerTool('setup_physics_body', {
+        description: 'Add and configure a physics body on a node',
+        inputSchema: {
+            path: NodePath.describe('Node to add the physics body to'),
+            properties: Properties.describe('Body properties (mass, gravity_scale, etc.)'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/setup_body', args));
+    // 2. setup_collision
+    server.registerTool('setup_collision', {
+        description: 'Add and configure a collision shape on a node',
+        inputSchema: {
+            path: NodePath.describe('Node to add collision to'),
+            shape_type: z.enum(['box', 'sphere', 'capsule', 'cylinder', 'convex', 'concave', 'polygon', 'circle', 'rectangle']).describe('Collision shape type'),
+            properties: OptionalProperties.describe('Shape properties (size, radius, height, etc.)'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/setup_collision', args));
+    // 3. set_physics_layers
+    server.registerTool('set_physics_layers', {
+        description: 'Set physics collision layers and masks on a node. Layer/mask values can be a single layer NUMBER (1-32) or an ARRAY of numbers to set multiple layers simultaneously.',
+        inputSchema: {
+            path: NodePath.describe('Node with collision object'),
+            layer: z
+                .union([z.number().int().min(1).max(32), z.array(z.number().int().min(1).max(32)).min(1)])
+                .optional()
+                .describe('Collision layer (1-32) or array of layers (e.g. [1, 3, 5])'),
+            mask: z
+                .union([z.number().int().min(1).max(32), z.array(z.number().int().min(1).max(32)).min(1)])
+                .optional()
+                .describe('Collision mask (1-32) or array of masks (e.g. [2, 4])'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/set_layers', args));
+    // 4. get_physics_layers
+    server.registerTool('get_physics_layers', {
+        description: 'Get physics layer and mask information for a node',
+        inputSchema: {
+            path: NodePath.describe('Node with collision object'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/get_layers', args));
+    // 5. get_collision_info
+    server.registerTool('get_collision_info', {
+        description: 'Get collision information for a physics body',
+        inputSchema: {
+            path: NodePath.describe('Physics body node path'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/get_collision_info', args));
+    // 6. add_raycast
+    server.registerTool('add_raycast', {
+        description: 'Add a RayCast2D or RayCast3D node',
+        inputSchema: {
+            parent_path: ParentPath.describe("Parent node — '' for scene root"),
+            properties: OptionalProperties.describe('Raycast properties (target, enabled, collide_with_areas, etc.)'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/add_raycast', args));
+    // 7. get_physics_material
+    server.registerTool('get_physics_material', {
+        description: 'Get the physics material properties of a node',
+        inputSchema: {
+            path: NodePath,
+        },
+    }, async (args) => callGodot(bridge, 'physics/get_material', args));
+    // 8. set_physics_material
+    server.registerTool('set_physics_material', {
+        description: 'Create and set a physics material on a node',
+        inputSchema: {
+            path: NodePath,
+            friction: z.number().min(0).optional().describe('Friction coefficient'),
+            bounce: z.number().min(0).max(1).optional().describe('Bounce/Restitution coefficient'),
+            rough: z.boolean().optional().describe('Whether surface is rough'),
+            absorbent: z.boolean().optional().describe('Whether the surface absorbs impact energy'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/set_material', args));
+    // 9. get_physics_body
+    server.registerTool('get_physics_body', {
+        description: 'Get physics body properties from a node (mass, gravity_scale, linear_damp, angular_damp)',
+        inputSchema: {
+            path: NodePath.describe('Physics body node path'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/get_body', args));
+    // 10. remove_collision
+    server.registerTool('remove_collision', {
+        description: 'Remove collision shape(s) from a physics body',
+        inputSchema: {
+            path: NodePath.describe('Parent node path'),
+            name: z.string().optional().describe('Collision shape name to remove (omit to remove all)'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/remove_collision', args));
+    // 11. remove_raycast
+    server.registerTool('remove_raycast', {
+        description: 'Remove a RayCast node from a parent',
+        inputSchema: {
+            path: NodePath.describe('Parent node path'),
+            name: z.string().optional().describe('RayCast node name to remove (omit to remove all)'),
+        },
+    }, async (args) => callGodot(bridge, 'physics/remove_raycast', args));
+}
+//# sourceMappingURL=physics.js.map
