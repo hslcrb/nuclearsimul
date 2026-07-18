@@ -200,13 +200,13 @@ func _make_tree(pos: Vector3, ground_h: float):
 	root.position = pos
 
 	if _has_models and _tree_packed:
-		var instance = _tree_packed.instantiate()
-		root.add_child(instance)
-		if instance is Node3D:
-			instance.owner = root
+		var n3: Node3D = _tree_packed.instantiate() as Node3D
+		if n3 != null:
+			n3.owner = root
 			var s = randf_range(0.6, 1.2)
-			instance.scale = Vector3(s, s, s)
-			instance.rotation.y = randf_range(0, TAU)
+			n3.scale = Vector3(s, s, s)
+			n3.rotation.y = randf_range(0, TAU)
+			root.add_child(n3)
 	else:
 		var h = randf_range(2.5, 6.0)
 		var r = randf_range(0.12, 0.25)
@@ -267,17 +267,18 @@ func _ground_cover():
 				continue
 			var val := tree_noise.get_noise_2d(wx + 50, wz + 50)
 			if val > 0.3:
-				var which := _bush_packed if val > 0.4 else _rock_packed
-				if not which:
+				var which: PackedScene = _bush_packed if val > 0.4 else _rock_packed
+				if which == null:
 					continue
-				var inst := which.instantiate()
-				if inst is Node3D:
-					var s := randf_range(0.3, 0.7) if which == _bush_packed else randf_range(0.5, 1.0)
-					inst.scale = Vector3(s, s, s)
-					inst.rotation.y = randf_range(0, TAU)
-				inst.position = Vector3(wx, y, wz)
-				add_child(inst)
-				inst.owner = self
+				var n3: Node3D = which.instantiate() as Node3D
+				if n3 == null:
+					continue
+				var s := randf_range(0.3, 0.7) if which == _bush_packed else randf_range(0.5, 1.0)
+				n3.scale = Vector3(s, s, s)
+				n3.rotation.y = randf_range(0, TAU)
+				n3.position = Vector3(wx, y, wz)
+				add_child(n3)
+				n3.owner = self
 
 # =================== WATER ===================
 
@@ -369,13 +370,14 @@ func _make_portal(name: String, pos: Vector3, rot: float, title: String, info: S
 			_fence_packed = _load_glb(fp)
 	if _fence_packed:
 		for side in [-1, 1]:
-			var f := _fence_packed.instantiate()
-			if f is Node3D:
-				f.scale = Vector3(2, 2, 2)
-				f.position = Vector3(side * 6, 0, -1)
-				f.rotation.y = 0
-			root.add_child(f)
-			f.owner = root
+			var n3: Node3D = _fence_packed.instantiate() as Node3D
+			if n3 == null:
+				continue
+			n3.scale = Vector3(2, 2, 2)
+			n3.position = Vector3(side * 6, 0, -1)
+			n3.rotation.y = 0
+			root.add_child(n3)
+			n3.owner = root
 
 	var tunnel = MeshInstance3D.new()
 	var cyl = CylinderMesh.new()
@@ -550,26 +552,33 @@ func _make_building(name: String, pos: Vector3, size: Vector3, title: String, in
 	area.collision_mask = 0
 
 func _decorate_building(parent: Node3D, size: Vector3):
-	var barrel_path := "res://models/glb/factory_kit/oil-drum.glb"
-	var box_path := "res://models/glb/factory_kit/box-small.glb"
-	for p in [barrel_path, box_path]:
-		if FileAccess.file_exists(p):
-			var ps := _load_glb(p) if not ResourceLoader.exists(p) else load(p)
-			if ps:
-				var count := randi() % 4
-				for i in range(count):
-					var inst := ps.instantiate()
-					if inst is Node3D:
-						var s := randf_range(0.5, 1.0)
-						inst.scale = Vector3(s, s, s)
-						inst.rotation.y = randf_range(0, TAU)
-						inst.position = Vector3(
-							randf_range(-size.x * 0.4, size.x * 0.4),
-							0,
-							randf_range(-size.z * 0.3, size.z * 0.3)
-						)
-					parent.add_child(inst)
-					inst.owner = self
+	var paths := [
+		"res://models/glb/factory_kit/oil-drum.glb",
+		"res://models/glb/factory_kit/box-small.glb",
+	]
+	for p in paths:
+		var ps: PackedScene
+		if ResourceLoader.exists(p):
+			ps = load(p) as PackedScene
+		elif FileAccess.file_exists(p):
+			ps = _load_glb(p)
+		if ps == null:
+			continue
+		var count := randi() % 4
+		for i in range(count):
+			var n3: Node3D = ps.instantiate() as Node3D
+			if n3 == null:
+				continue
+			var s := randf_range(0.5, 1.0)
+			n3.scale = Vector3(s, s, s)
+			n3.rotation.y = randf_range(0, TAU)
+			n3.position = Vector3(
+				randf_range(-size.x * 0.4, size.x * 0.4),
+				0,
+				randf_range(-size.z * 0.3, size.z * 0.3)
+			)
+			parent.add_child(n3)
+			n3.owner = self
 
 func _buildings():
 	_make_building("AdminBuilding", Vector3(-15, 8, 100), Vector3(14, 6, 10),
