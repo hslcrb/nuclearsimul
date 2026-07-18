@@ -5,6 +5,12 @@ var noise: FastNoiseLite
 var tree_noise: FastNoiseLite
 var detail_noise: FastNoiseLite
 
+var _tree_packed: PackedScene
+var _bush_packed: PackedScene
+var _rock_packed: PackedScene
+var _sign_packed: PackedScene
+var _has_models := false
+
 func _ready():
 	if Engine.is_editor_hint():
 		return
@@ -25,7 +31,45 @@ func _ready():
 	detail_noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	detail_noise.frequency = 0.03
 
+	_load_models()
 	_generate()
+
+func _load_glb(path: String) -> PackedScene:
+	if ResourceLoader.exists(path):
+		return load(path) as PackedScene
+	if not FileAccess.file_exists(path):
+		return null
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	var err := doc.append_from_file(path, state)
+	if err != OK:
+		return null
+	var root := doc.generate_scene(state)
+	if not root:
+		return null
+	var ps := PackedScene.new()
+	ps.pack(root)
+	root.free()
+	return ps
+
+func _load_models():
+	var candidates := [
+		"res://models/glb/mini_forest/tree.glb",
+		"res://models/glb/mini_forest/tree-high.glb",
+		"res://models/glb/mini_forest/plant.glb",
+		"res://models/glb/mini_forest/rocks-high.glb",
+		"res://models/glb/mini_forest/stones.glb",
+	]
+	for p in candidates:
+		var ps := _load_glb(p)
+		if ps:
+			if not _tree_packed:
+				_tree_packed = ps
+			_bush_packed = ps if p.contains("plant") else _bush_packed
+			_rock_packed = ps if p.contains("rock") or p.contains("stone") else _rock_packed
+	if _tree_packed:
+		_has_models = true
+		print("[WorldGenerator] GLB tree models loaded OK")
 
 func h(x: float, z: float) -> float:
 	var raw = noise.get_noise_2d(x, z)
@@ -59,6 +103,7 @@ func _compute_slope(h: float, x: float, z: float) -> float:
 func _generate():
 	_terrain()
 	_trees()
+	_ground_cover()
 	_water()
 	_portals()
 	_buildings()
@@ -151,45 +196,88 @@ func _trees():
 				_make_tree(Vector3(wx, y, wz), y)
 
 func _make_tree(pos: Vector3, ground_h: float):
-	var h = randf_range(2.5, 6.0)
-	var r = randf_range(0.12, 0.25)
-
-	var trunk = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = r * 0.7
-	cyl.bottom_radius = r
-	cyl.height = h
-	trunk.mesh = cyl
-	trunk.position = Vector3(0, h / 2, 0)
-	var tm = StandardMaterial3D.new()
-	tm.albedo_color = Color(0.3, 0.2, 0.12).lerp(Color(0.4, 0.28, 0.15), randf())
-	tm.roughness = 0.95
-	trunk.material_override = tm
-
-	var crown = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = randf_range(1.2, 2.5)
-	sphere.height = randf_range(2.5, 4.5)
-	crown.mesh = sphere
-	crown.position = Vector3(0, h + 1.0, 0)
-	var cm = StandardMaterial3D.new()
-	var g = randf_range(0.2, 0.45)
-	cm.albedo_color = Color(0.1, g, 0.08).lerp(Color(0.15, 0.35, 0.1), randf())
-	cm.roughness = 0.8
-	crown.material_override = cm
-
 	var root = Node3D.new()
 	root.position = pos
-	root.rotation.y = randf_range(0, TAU)
-	var s = randf_range(0.7, 1.3)
-	root.scale = Vector3(s, s, s)
-	root.add_child(trunk)
-	trunk.owner = root
-	root.add_child(crown)
-	crown.owner = root
+
+	if _has_models and _tree_packed:
+		var instance = _tree_packed.instantiate()
+		root.add_child(instance)
+		if instance is Node3D:
+			instance.owner = root
+			var s = randf_range(0.6, 1.2)
+			instance.scale = Vector3(s, s, s)
+			instance.rotation.y = randf_range(0, TAU)
+	else:
+		var h = randf_range(2.5, 6.0)
+		var r = randf_range(0.12, 0.25)
+
+		var trunk = MeshInstance3D.new()
+		var cyl = CylinderMesh.new()
+		cyl.top_radius = r * 0.7
+		cyl.bottom_radius = r
+		cyl.height = h
+		trunk.mesh = cyl
+		trunk.position = Vector3(0, h / 2, 0)
+		var tm = StandardMaterial3D.new()
+		tm.albedo_color = Color(0.3, 0.2, 0.12).lerp(Color(0.4, 0.28, 0.15), randf())
+		tm.roughness = 0.95
+		trunk.material_override = tm
+
+		var crown = MeshInstance3D.new()
+		var sphere = SphereMesh.new()
+		sphere.radius = randf_range(1.2, 2.5)
+		sphere.height = randf_range(2.5, 4.5)
+		crown.mesh = sphere
+		crown.position = Vector3(0, h + 1.0, 0)
+		var cm = StandardMaterial3D.new()
+		var g = randf_range(0.2, 0.45)
+		cm.albedo_color = Color(0.1, g, 0.08).lerp(Color(0.15, 0.35, 0.1), randf())
+		cm.roughness = 0.8
+		crown.material_override = cm
+
+		root.add_child(trunk)
+		trunk.owner = root
+		root.add_child(crown)
+		crown.owner = root
+		root.rotation.y = randf_range(0, TAU)
+		var s = randf_range(0.7, 1.3)
+		root.scale = Vector3(s, s, s)
 
 	add_child(root)
 	root.owner = self
+
+# =================== GROUND COVER ===================
+
+func _ground_cover():
+	if not _has_models:
+		return
+	var res := 40
+	var size := 300.0
+	var half := size / 2.0
+	var step := size / res
+	for z in range(res):
+		for x in range(res):
+			var wx := x * step - half + randf_range(-2, 2)
+			var wz := z * step - half + randf_range(-2, 2)
+			var dist := Vector2(wx, wz).length()
+			if dist < 20 or dist > 125:
+				continue
+			var y := h(wx, wz)
+			if y < 1.5 or y > 20:
+				continue
+			var val := tree_noise.get_noise_2d(wx + 50, wz + 50)
+			if val > 0.3:
+				var which := _bush_packed if val > 0.4 else _rock_packed
+				if not which:
+					continue
+				var inst := which.instantiate()
+				if inst is Node3D:
+					var s := randf_range(0.3, 0.7) if which == _bush_packed else randf_range(0.5, 1.0)
+					inst.scale = Vector3(s, s, s)
+					inst.rotation.y = randf_range(0, TAU)
+				inst.position = Vector3(wx, y, wz)
+				add_child(inst)
+				inst.owner = self
 
 # =================== WATER ===================
 
@@ -263,6 +351,8 @@ func _dark():
 	m.roughness = 0.95
 	return m
 
+var _fence_packed: PackedScene
+
 func _make_portal(name: String, pos: Vector3, rot: float, title: String, info: String):
 	var root = Node3D.new()
 	root.name = name
@@ -270,6 +360,22 @@ func _make_portal(name: String, pos: Vector3, rot: float, title: String, info: S
 	root.rotation.y = rot
 	add_child(root)
 	root.owner = self
+
+	if not _fence_packed:
+		var fp := "res://models/glb/factory_kit/fence.glb"
+		if ResourceLoader.exists(fp):
+			_fence_packed = load(fp)
+		elif FileAccess.file_exists(fp):
+			_fence_packed = _load_glb(fp)
+	if _fence_packed:
+		for side in [-1, 1]:
+			var f := _fence_packed.instantiate()
+			if f is Node3D:
+				f.scale = Vector3(2, 2, 2)
+				f.position = Vector3(side * 6, 0, -1)
+				f.rotation.y = 0
+			root.add_child(f)
+			f.owner = root
 
 	var tunnel = MeshInstance3D.new()
 	var cyl = CylinderMesh.new()
@@ -424,6 +530,8 @@ func _make_building(name: String, pos: Vector3, size: Vector3, title: String, in
 	root.add_child(door)
 	door.owner = self
 
+	_decorate_building(root, size)
+
 	var area = Area3D.new()
 	area.name = "Interactable"
 	area.position = Vector3(0, 2, size.z / 2 + 2.5)
@@ -440,6 +548,28 @@ func _make_building(name: String, pos: Vector3, size: Vector3, title: String, in
 	col.owner = self
 	area.collision_layer = 2
 	area.collision_mask = 0
+
+func _decorate_building(parent: Node3D, size: Vector3):
+	var barrel_path := "res://models/glb/factory_kit/oil-drum.glb"
+	var box_path := "res://models/glb/factory_kit/box-small.glb"
+	for p in [barrel_path, box_path]:
+		if FileAccess.file_exists(p):
+			var ps := _load_glb(p) if not ResourceLoader.exists(p) else load(p)
+			if ps:
+				var count := randi() % 4
+				for i in range(count):
+					var inst := ps.instantiate()
+					if inst is Node3D:
+						var s := randf_range(0.5, 1.0)
+						inst.scale = Vector3(s, s, s)
+						inst.rotation.y = randf_range(0, TAU)
+						inst.position = Vector3(
+							randf_range(-size.x * 0.4, size.x * 0.4),
+							0,
+							randf_range(-size.z * 0.3, size.z * 0.3)
+						)
+					parent.add_child(inst)
+					inst.owner = self
 
 func _buildings():
 	_make_building("AdminBuilding", Vector3(-15, 8, 100), Vector3(14, 6, 10),
@@ -479,10 +609,9 @@ func _environment():
 	var env = WorldEnvironment.new()
 	env.name = "WorldEnvironment"
 	var e = Environment.new()
-	e.background_color = Color(0.4, 0.55, 0.85)
 	e.tonemap_mode = 3
-	e.ambient_light_color = Color(0.25, 0.3, 0.4)
-	e.ambient_light_energy = 0.35
+	e.ambient_light_color = Color(0.3, 0.35, 0.45)
+	e.ambient_light_energy = 0.3
 
 	e.glow_enabled = true
 	e.glow_levels = 1
@@ -492,10 +621,39 @@ func _environment():
 
 	var fog_mat = FogMaterial.new()
 	fog_mat.density = 0.003
-	fog_mat.albedo_color = Color(0.6, 0.7, 0.85)
+	fog_mat.albedo_color = Color(0.65, 0.72, 0.85)
 	e.fog_enabled = true
 	e.fog_material = fog_mat
+
+	var sky_path := "res://textures/skyboxes/skybox-day.png"
+	if FileAccess.file_exists(sky_path):
+		var tex := load(sky_path) as Texture2D
+		if tex:
+			var pano := PanoramaSkyMaterial.new()
+			pano.panorama = tex
+			pano.filtering_enabled = false
+			var sky := Sky.new()
+			sky.sky_material = pano
+			e.background_mode = Environment.BG_SKY
+			e.sky = sky
+			e.background_color = Color(0.4, 0.55, 0.85)
+		else:
+			_fallback_sky(e)
+	else:
+		_fallback_sky(e)
 
 	env.environment = e
 	add_child(env)
 	env.owner = self
+
+func _fallback_sky(e: Environment):
+	var sky := ProceduralSkyMaterial.new()
+	sky.sky_top_color = Color(0.35, 0.55, 0.85)
+	sky.sky_horizon_color = Color(0.65, 0.72, 0.82)
+	sky.ground_bottom_color = Color(0.2, 0.22, 0.2)
+	sky.ground_horizon_color = Color(0.4, 0.42, 0.38)
+	sky.sun_angle_max = 0.5
+	var s := Sky.new()
+	s.sky_material = sky
+	e.background_mode = Environment.BG_SKY
+	e.sky = s
