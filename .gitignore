@@ -1,13 +1,36 @@
-# MCP development tools
-mcp_*.mjs
-mcp_*.py
-mcp_relay.sh
+# Godot generated files
+.godot/
+*.import
+*.uid
+*.translation
+
+# Godot exports
+export/
+releases/
+builds/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+._*
 
-# Godot
-.godot/import/
-.godot/editor/
-*.translation
+# Python / MCP dev tools
+mcp_daemon.mjs
+mcp_relay.sh
+mcp_server_bridge.mjs
+mcp_session.py
+mcp_tool.mjs
+__pycache__/
+*.pyc
+
+# Logs / temp
+/tmp/
+*.log
