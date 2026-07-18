@@ -1,8 +1,12 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_generator.gd" id="1_3j8fa"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_k7m2b"]
-[ext_resource type="Script" path="res://scripts/interaction_manager.gd" id="3_p9n4c"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="3_h8p2a"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="4_g6m3d"]
+[ext_resource type="Script" path="res://scripts/geiger_counter.gd" id="5_geiger"]
+[ext_resource type="Script" path="res://scripts/photo_camera.gd" id="6_camera"]
+[ext_resource type="Script" path="res://scripts/audio_manager.gd" id="7_audio"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_p1q2"]
 radius = 0.5
@@ -14,64 +18,255 @@ height = 2.0
 script = ExtResource("1_3j8fa")
 
 [node name="Player" type="CharacterBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 120)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 3, 110)
 script = ExtResource("2_k7m2b")
 
-[node name="Head" type="Node3D" parent="Player"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+[node name="Neck" type="Node3D" parent="Player"]
+position = Vector3(0, 1.8, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Player/Head"]
+[node name="Head" type="Node3D" parent="Player/Neck"]
+
+[node name="Camera3D" type="Camera3D" parent="Player/Neck/Head"]
+
+[node name="Flashlight" type="OmniLight3D" parent="Player/Neck/Head"]
+position = Vector3(0, -0.1, -0.3)
+light_energy = 2.5
+light_color = Color(1, 0.9, 0.7)
+omni_range = 30
+light_indirect_energy = 0.5
+visible = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 shape = SubResource("CapsuleShape3D_p1q2")
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 1
+script = ExtResource("3_h8p2a")
 
-[node name="InteractionLabel" type="Label" parent="UI"]
+[node name="Crosshair" type="TextureRect" parent="HUD"]
+layout_mode = 0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -4.0
+offset_top = -4.0
+offset_right = 4.0
+offset_bottom = 4.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="StaminaBar" type="Control" parent="HUD"]
+layout_mode = 0
+anchors_preset = 0
+offset_left = 10.0
+offset_top = -30.0
+offset_right = 210.0
+offset_bottom = -10.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+
+[node name="StaminaBG" type="ColorRect" parent="HUD/StaminaBar"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.2, 0.2, 0.2, 0.7)
+
+[node name="StaminaFill" type="ColorRect" parent="HUD/StaminaBar"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.3, 1, 0.3, 0.9)
+
+[node name="InteractionLabel" type="Label" parent="HUD"]
+layout_mode = 0
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -80.0
-offset_right = 150.0
-offset_bottom = -40.0
+offset_left = -200.0
+offset_top = -120.0
+offset_right = 200.0
+offset_bottom = -80.0
 grow_horizontal = 2
 grow_vertical = 0
-size_flags_horizontal = 4
-size_flags_vertical = 4
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.8, 1, 0.8, 0.9)
+horizontal_alignment = 1
+vertical_alignment = 1
 visible = false
 
-[node name="InfoPanel" type="Panel" parent="UI"]
+[node name="Compass" type="Control" parent="HUD"]
+layout_mode = 0
+anchors_preset = 7
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -110.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 50.0
+
+[node name="BG" type="ColorRect" parent="HUD/Compass"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="Label" type="Label" parent="HUD/Compass"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "N"
+
+[node name="PosLabel" type="Label" parent="HUD"]
+layout_mode = 0
+anchors_preset = 11
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -210.0
+offset_top = -40.0
+offset_right = -10.0
+offset_bottom = -10.0
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(1, 1, 1, 0.6)
+horizontal_alignment = 2
+
+[node name="DosisLabel" type="Label" parent="HUD"]
+layout_mode = 0
+anchors_preset = 0
+offset_left = 10.0
+offset_top = 60.0
+offset_right = 300.0
+offset_bottom = 85.0
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.3, 1, 0.3, 0.8)
+
+[node name="PhotoCountLabel" type="Label" parent="HUD"]
+layout_mode = 0
+anchors_preset = 10
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -20.0
+offset_right = -10.0
+offset_bottom = 20.0
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 1, 1, 0.5)
+horizontal_alignment = 2
+text = "📷 0"
+
+[node name="NotificationLabel" type="Label" parent="HUD"]
+layout_mode = 0
+anchors_preset = 1
+anchor_left = 0.5
+anchor_top = 0.0
+anchor_right = 0.5
+anchor_bottom = 0.0
+offset_left = -200.0
+offset_top = 10.0
+offset_right = 200.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+horizontal_alignment = 1
+visible = false
+
+[node name="InfoPanel" type="Panel" parent="HUD"]
+layout_mode = 0
+anchors_preset = 0
 offset_left = 200.0
-offset_top = 120.0
+offset_top = 100.0
 offset_right = 700.0
 offset_bottom = 550.0
 visible = false
-color = Color(0.1, 0.1, 0.12, 0.92)
+color = Color(0.08, 0.08, 0.1, 0.92)
 
-[node name="Margin" type="MarginContainer" parent="UI/InfoPanel"]
+[node name="Margin" type="MarginContainer" parent="HUD/InfoPanel"]
+layout_mode = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 25
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 25
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 25
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 25
 
-[node name="VBox" type="VBoxContainer" parent="UI/InfoPanel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="HUD/InfoPanel/Margin"]
 
-[node name="InfoTitle" type="Label" parent="UI/InfoPanel/Margin/VBox"]
+[node name="InfoTitle" type="Label" parent="HUD/InfoPanel/Margin/VBox"]
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(1, 0.8, 0.3)
+vertical_alignment = 1
+autowrap_mode = 2
 
-[node name="InfoText" type="Label" parent="UI/InfoPanel/Margin/VBox"]
+[node name="HSep" type="HSeparator" parent="HUD/InfoPanel/Margin/VBox"]
 
-[node name="CloseHint" type="Label" parent="UI/InfoPanel/Margin/VBox"]
+[node name="InfoText" type="Label" parent="HUD/InfoPanel/Margin/VBox"]
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9)
+autowrap_mode = 2
 
-[node name="InteractionManager" type="Node" parent="."]
-script = ExtResource("3_p9n4c")
+[node name="VSep" type="VSeparator" parent="HUD/InfoPanel/Margin/VBox"]
 
-[node name="HUD" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 10.0
+[node name="CloseHint" type="Label" parent="HUD/InfoPanel/Margin/VBox"]
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.5, 0.5, 0.55)
+text = "[ESC] Close  [E] Interact"
+horizontal_alignment = 1
+
+[node name="PausePanel" type="Panel" parent="HUD"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+visible = false
+
+[node name="PauseLabel" type="Label" parent="HUD/PausePanel"]
+layout_mode = 0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -30.0
+offset_right = 100.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 32
+theme_override_colors/font_color = Color(1, 1, 1, 0.8)
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "PAUSED"
+mouse_filter = 1
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("4_g6m3d")
+
+[node name="GeigerCounter" type="Node" parent="GameManager"]
+script = ExtResource("5_geiger")
+
+[node name="PhotoCamera" type="Node" parent="GameManager"]
+script = ExtResource("6_camera")
+
+[node name="AudioManager" type="Node" parent="GameManager"]
+script = ExtResource("7_audio")

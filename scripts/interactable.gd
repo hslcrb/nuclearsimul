@@ -7,4 +7,4 @@ class_name Interactable
 @export var icon: Texture2D
 
 func get_interaction_text() -> String:
-	return "[E] " + title + " | [SPACE] Jump | [SHIFT] Sprint | [ESC] Menu"
+	return "[E] " + title
