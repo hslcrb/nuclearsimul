@@ -16,10 +16,10 @@ var is_crouching: bool = false
 var was_grounded: bool = true
 var head_t: float = 1.0
 
-@onready var head = $Head
-@onready var cam = $Head/Camera3D
 @onready var neck = $Neck
-@onready var flashlight = $Head/Flashlight
+@onready var head = $Neck/Head
+@onready var cam = $Neck/Head/Camera3D
+@onready var flashlight = $Neck/Head/Flashlight
 
 func _ready():
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
